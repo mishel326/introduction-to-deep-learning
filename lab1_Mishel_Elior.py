@@ -16,8 +16,8 @@ background_color = "#101010"
 height = 720
 width = 1080
 
-def read(name=r'sample.txt'):
-    with open(name,encoding='utf-8') as file:
+def read(name=r'sample'):
+    with open(name+'.txt',encoding='utf-8') as file:
         data = file.read()
     return data
 
