@@ -5,6 +5,7 @@ Created on Wed Apr  1 10:32:02 2020
 @author: Mishel Elgawi 204563761, Elior mor 313168981
 """
 import numpy as np
+import sys
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize
 from nltk.tokenize import RegexpTokenizer
@@ -16,12 +17,11 @@ background_color = "#101010"
 height = 720
 width = 1080
 
-def read(name=r'sample'):
-    with open(name+'.txt',encoding='utf-8') as file:
-        data = file.read()
-    return data
+NAME = sys.argv[1].replace(".txt", "")
 
-data = read()
+with open(sys.argv[1],encoding='utf-8') as file:
+    data = file.read()
+
 
 tokenizer = RegexpTokenizer(r'\w+')
     
@@ -67,7 +67,7 @@ word_cloud = WordCloud(
 word_cloud.generate_from_frequencies(_data)
 image = word_cloud.to_image()
 image.show()
-word_cloud.to_file('Mishel_Elior_cloud.png') 
+word_cloud.to_file(NAME + "_cloud.png") 
 
 for i in dictionry.keys():
     num = dictionry.get(i)
@@ -86,7 +86,7 @@ def list_to_index(_list):
             
 list_to_index(stem_sentence)
 
-with open(r'Mishel_Elior_1hot.txt','w',encoding='utf-8') as file:
+with open(NAME + r'1hot.txt','w',encoding='utf-8') as file:
     for i in stem_sentence:
         file.write('[')
         for j in i:
