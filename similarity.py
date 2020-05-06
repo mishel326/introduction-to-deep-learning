@@ -102,14 +102,31 @@ def build_vocab(_list):
             if j not in dictionry:
                 dictionry[j] = len(dictionry)
 
+
 #embedding_matrix = {}
 #
-#def convert_words_to_vector(_list):
+#def build_embedding_vocab(_list):
 #    for key,value in dictionry.items():
 #        embedding_vector = vector.get(key)
 #        if embedding_vector is not None:
 #            embedding_matrix[value] = embedding_vector
 
+def convert_words_to_vector(_list):
+    tmp =[]
+    for sent in range(len(_list)):
+        sents = []
+        for word in _list[sent]:
+            embedding_vector = vector.get(word)
+            if embedding_vector is not None:
+                sents.append(embedding_vector)
+        tmp.append(sents)
+    return np.asarray(tmp)
+        
+
+#average_embedding_matrix = {}
+#               
+#def average_word_embedding(_list):
+#    pass
 
 if __name__ == "__main__":
     startTime = datetime.now()
@@ -120,6 +137,9 @@ if __name__ == "__main__":
     build_vocab(tags)
     logging.info("loading fasttext vector")
     vector = load_vectors(r'fasttext_vector/wiki-news-300d-1M.vec')
+    logging.info("done")
+    logging.info("check")
+    check = convert_words_to_vector(tags)
     logging.info("done")
 #    logging.info("convert_words_to_vector")
 #    convert_words_to_vector(description)
