@@ -93,16 +93,30 @@ def load_vectors(fname):
     return data
 
 
+<<<<<<< HEAD
 def convert_words_to_vector(_list):
+=======
+def convert_words_to_vector(_list,op):
+>>>>>>> df115dab1ce53c6489eceef651f9f3ecfff1e3ab
     tmp =[]
     for sent in range(len(_list)):
         sents = []
         for word in _list[sent]:
             embedding_vector = vector.get(word)
+<<<<<<< HEAD
             if embedding_vector is not None :
+=======
+            if embedding_vector is not None and op == "convert":
+>>>>>>> df115dab1ce53c6489eceef651f9f3ecfff1e3ab
                 sents.append(embedding_vector)
-        tmp.append(np.average(sents,axis=0))
+            elif embedding_vector is not None and op == "remove":
+                sents.append(word)
+        if len(sents) > 0 and op =="convert":
+            tmp.append(np.average(sents,axis=0))
+        elif len(sents) > 0 and op =="remove":
+            tmp.append(sents)
     return np.asarray(tmp)
+        
         
 
 if __name__ == "__main__":
@@ -123,8 +137,13 @@ if __name__ == "__main__":
         tags = preprocessing(tags)
         logging.info("done")
         logging.info("convert words to vector")
+<<<<<<< HEAD
         description = convert_words_to_vector(description)
         tags = convert_words_to_vector(tags)
+=======
+        description = convert_words_to_vector(description,"convert")
+        tags = convert_words_to_vector(tags,"convert")
+>>>>>>> df115dab1ce53c6489eceef651f9f3ecfff1e3ab
         logging.info("done")
         logging.info("spliting the dataset")
         x_train, x_test, y_train, y_test = train_test_split(tags,description,test_size=0.3)
@@ -150,9 +169,16 @@ if __name__ == "__main__":
             text = f.readlines()
         query = preprocessing(query)
         text = preprocessing(text)
+<<<<<<< HEAD
         x = convert_words_to_vector(query)
         y = convert_words_to_vector(text)
         model = load_model(args.model)
+=======
+        x = convert_words_to_vector(query,"convert")
+        y = convert_words_to_vector(text,"convert")
+        model = load_model(args.model)
+        text = convert_words_to_vector(text,"remove")
+>>>>>>> df115dab1ce53c6489eceef651f9f3ecfff1e3ab
         predict = model.predict(x)
         max = 0
         word = ''
@@ -161,5 +187,10 @@ if __name__ == "__main__":
             if tmp[0][0] > max:
                 max = tmp[0][0]
                 word = text[i]      
+<<<<<<< HEAD
         print(word)
+=======
+        with open("most_similar.txt", 'w') as f:
+            f.write(f"The most simliar word is:{str(word[0])}.")
+>>>>>>> df115dab1ce53c6489eceef651f9f3ecfff1e3ab
     logging.info("Script ended, execution time: " + str(datetime.now() - startTime))
