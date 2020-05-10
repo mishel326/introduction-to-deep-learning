@@ -17,9 +17,14 @@ import argparse
 import re 
 import io
 import logging
+from matplotlib import pyplot
 from datetime import datetime
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import stopwords
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 handlers = [logging.StreamHandler()]
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s - %(message)s', datefmt="%H:%M:%S", handlers=handlers)
@@ -54,17 +59,10 @@ def clean_text(text):
     text = re.sub(r"'til", "until", text)
     return text
 
-#read csv data set 
-data = pd.read_csv(args.data)
-data = data.dropna()
-
-def preproceeing(data):
+def preprocessing(_list):
     #sepration to sentence and query 
-    description = [sent for sent in data["description"]]
-    tags = [tag for tag in data["tags"]]
     
-    description = np.array(description)
-    tags = np.array(tags)
+    tmp = np.array(_list)
 
     def toknization_and_stop_words(_list):
         tmp = []
@@ -77,10 +75,8 @@ def preproceeing(data):
             tmp.append(filtered_sentence)
         tmp = np.array(tmp)
         return tmp
-        
-    description = toknization_and_stop_words(description)
-    tags = toknization_and_stop_words(tags)
-    return description,tags
+    tmp = toknization_and_stop_words(tmp)
+    return tmp
 
 dictionry = {}  
 
@@ -103,14 +99,6 @@ def build_vocab(_list):
                 dictionry[j] = len(dictionry)
 
 
-#embedding_matrix = {}
-#
-#def build_embedding_vocab(_list):
-#    for key,value in dictionry.items():
-#        embedding_vector = vector.get(key)
-#        if embedding_vector is not None:
-#            embedding_matrix[value] = embedding_vector
-
 def convert_words_to_vector(_list):
     tmp =[]
     for sent in range(len(_list)):
@@ -119,30 +107,48 @@ def convert_words_to_vector(_list):
             embedding_vector = vector.get(word)
             if embedding_vector is not None:
                 sents.append(embedding_vector)
-        tmp.append(sents)
+        tmp.append(np.average(sents,axis=0))
     return np.asarray(tmp)
         
-
-#average_embedding_matrix = {}
-#               
-#def average_word_embedding(_list):
-#    pass
 
 if __name__ == "__main__":
     startTime = datetime.now()
     logging.info("Script started")
-    description, tags = preproceeing(data)
+    logging.info("read dataset")
+    data = pd.read_csv(args.data)
+    data = data.dropna()
+    description = [sent for sent in data["description"]]
+    tags = [tag for tag in data["tags"]]
+    logging.info("done")
+    logging.info("preprocessing")
+    description = preprocessing(description)
+    tags = preprocessing(tags)
+    logging.info("done")
     logging.info("build vocab")
     build_vocab(description)
     build_vocab(tags)
     logging.info("loading fasttext vector")
     vector = load_vectors(r'fasttext_vector/wiki-news-300d-1M.vec')
     logging.info("done")
-    logging.info("check")
-    check = convert_words_to_vector(tags)
+    logging.info("convert words to vector")
+    description = convert_words_to_vector(description)
+    tags = convert_words_to_vector(tags)
     logging.info("done")
-#    logging.info("convert_words_to_vector")
-#    convert_words_to_vector(description)
-#    convert_words_to_vector(tags)
-#    logging.info("done")
+    logging.info("spliting the dataset")
+    x_train, x_test, y_train, y_test = train_test_split(tags,description,test_size=0.3)
+    x_train, x_val, y_train, y_val = train_test_split(x_train,y_train,test_size=0.15)
+    logging.info("done")
+    logging.info("building model")
+    model=Sequential()
+    model.add(Dense(32, activation="softmax", input_dim=300))
+    model.add(Dense(300, activation="softmax"))
+    model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
+    checkpoint = ModelCheckpoint("best_model.hdf5", monitor='val_accuracy', verbose=1,
+    save_best_only=True, mode='auto', period=1)
+    history = model.fit(x_train, y_train, epochs=100, batch_size=64, callbacks=[checkpoint], validation_data=(x_val,y_val))
+    pyplot.plot(history.history['accuracy'], label='train') 
+    pyplot.plot(history.history['val_accuracy'], label='test') 
+    pyplot.legend()
+    pyplot.savefig("epocs_100.png")
+    pyplot.show()
     logging.info("Script ended, execution time: " + str(datetime.now() - startTime))
