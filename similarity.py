@@ -25,6 +25,8 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.models import load_model
+from sklearn.metrics.pairwise import cosine_similarity
 
 handlers = [logging.StreamHandler()]
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s - %(message)s', datefmt="%H:%M:%S", handlers=handlers)
@@ -33,8 +35,7 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s - %(
 parser = argparse.ArgumentParser(description="similarity.py --query <query file global path> --text <text file global path> --task <train/test> --data <training dataset in .csv format> --model <trained model>")
 parser.add_argument('--query', type=str, default='aaa', help='file containing query sentence')
 parser.add_argument('--text', type=str, default='aaa', help='file containing text sentence')
-parser.add_argument('--task train', type=str, default='aaa', help='train the model')
-parser.add_argument('--task test', type=str, default='aaa', help='test the model')
+parser.add_argument('--task', type=str, default='aaa', help='train the model/test the model')
 parser.add_argument('--data', type=str, default='aaa', help='training dataset in .csv format')
 parser.add_argument('--model', type=str, default='aaa', help='trained model')
 args = parser.parse_args()
@@ -91,13 +92,6 @@ def load_vectors(fname):
     print("Loading was successful")
     return data
 
-#build vocab for the dataset
-def build_vocab(_list):
-    for i in _list:
-        for j in i:
-            if j not in dictionry:
-                dictionry[j] = len(dictionry)
-
 
 def convert_words_to_vector(_list):
     tmp =[]
@@ -105,7 +99,7 @@ def convert_words_to_vector(_list):
         sents = []
         for word in _list[sent]:
             embedding_vector = vector.get(word)
-            if embedding_vector is not None:
+            if embedding_vector is not None :
                 sents.append(embedding_vector)
         tmp.append(np.average(sents,axis=0))
     return np.asarray(tmp)
@@ -114,41 +108,58 @@ def convert_words_to_vector(_list):
 if __name__ == "__main__":
     startTime = datetime.now()
     logging.info("Script started")
-    logging.info("read dataset")
-    data = pd.read_csv(args.data)
-    data = data.dropna()
-    description = [sent for sent in data["description"]]
-    tags = [tag for tag in data["tags"]]
-    logging.info("done")
-    logging.info("preprocessing")
-    description = preprocessing(description)
-    tags = preprocessing(tags)
-    logging.info("done")
-    logging.info("build vocab")
-    build_vocab(description)
-    build_vocab(tags)
     logging.info("loading fasttext vector")
     vector = load_vectors(r'fasttext_vector/wiki-news-300d-1M.vec')
     logging.info("done")
-    logging.info("convert words to vector")
-    description = convert_words_to_vector(description)
-    tags = convert_words_to_vector(tags)
-    logging.info("done")
-    logging.info("spliting the dataset")
-    x_train, x_test, y_train, y_test = train_test_split(tags,description,test_size=0.3)
-    x_train, x_val, y_train, y_val = train_test_split(x_train,y_train,test_size=0.15)
-    logging.info("done")
-    logging.info("building model")
-    model=Sequential()
-    model.add(Dense(32, activation="softmax", input_dim=300))
-    model.add(Dense(300, activation="softmax"))
-    model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
-    checkpoint = ModelCheckpoint("best_model.hdf5", monitor='val_accuracy', verbose=1,
-    save_best_only=True, mode='auto', period=1)
-    history = model.fit(x_train, y_train, epochs=100, batch_size=64, callbacks=[checkpoint], validation_data=(x_val,y_val))
-    pyplot.plot(history.history['accuracy'], label='train') 
-    pyplot.plot(history.history['val_accuracy'], label='test') 
-    pyplot.legend()
-    pyplot.savefig("epocs_100.png")
-    pyplot.show()
+    if args.task == "train":
+        logging.info("read dataset")
+        data = pd.read_csv(args.data)
+        data = data.dropna()
+        description = [sent for sent in data["description"]]
+        tags = [tag for tag in data["tags"]]
+        logging.info("done")
+        logging.info("preprocessing")
+        description = preprocessing(description)
+        tags = preprocessing(tags)
+        logging.info("done")
+        logging.info("convert words to vector")
+        description = convert_words_to_vector(description)
+        tags = convert_words_to_vector(tags)
+        logging.info("done")
+        logging.info("spliting the dataset")
+        x_train, x_test, y_train, y_test = train_test_split(tags,description,test_size=0.3)
+        x_train, x_val, y_train, y_val = train_test_split(x_train,y_train,test_size=0.15)
+        logging.info("done")
+        logging.info("building model")
+        model=Sequential()
+        model.add(Dense(32, activation="relu", input_dim=300))
+        model.add(Dense(300))
+        model.compile(loss='mse', optimizer='adam', metrics=['accuracy'])
+        checkpoint = ModelCheckpoint("final_model_w2v.h5", monitor='val_accuracy', verbose=1,
+        save_best_only=True, mode='auto', period=1)
+        history = model.fit(x_train, y_train, epochs=100, batch_size=64, callbacks=[checkpoint], validation_data=(x_val,y_val))
+        pyplot.plot(history.history['accuracy'], label='train') 
+        pyplot.plot(history.history['val_accuracy'], label='test') 
+        pyplot.legend()
+        pyplot.savefig("epocs_100.png")
+        pyplot.show()
+    elif args.task == "test":
+        with open(args.query) as f:
+            query = f.readlines()
+        with open(args.text) as f:
+            text = f.readlines()
+        query = preprocessing(query)
+        text = preprocessing(text)
+        x = convert_words_to_vector(query)
+        y = convert_words_to_vector(text)
+        model = load_model(args.model)
+        predict = model.predict(x)
+        max = 0
+        word = ''
+        for i in range(len(y)):
+            tmp = cosine_similarity(predict,y[i].reshape(1,300))
+            if tmp[0][0] > max:
+                max = tmp[0][0]
+                word = text[i]      
+        print(word)
     logging.info("Script ended, execution time: " + str(datetime.now() - startTime))
